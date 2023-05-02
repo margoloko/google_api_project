@@ -31,3 +31,20 @@ def auth():
     credentials = Credentials.from_service_account_info(info=info, scopes=SCOPES)
     service = discovery.build('drive', 'v3', credentials=credentials)
     return service
+
+
+def get_list_obj(service):
+    response = service.files().list(q='mimeType="application/vnd.google-apps.spreadsheet"')
+    return response.execute()
+
+
+def clear_disk(service, spreadsheets):
+    """Функция удаляет все документы с таблицами на гугл-диске."""
+    for spreadsheet in spreadsheets:
+        response = service.files().delete(fileId=spreadsheet['id']).execute()
+
+
+service = auth()
+spreadsheets = get_list_obj(service)['files']
+pprint(get_list_obj(service))
+clear_disk(service, spreadsheets)
