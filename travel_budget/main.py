@@ -2,7 +2,6 @@ import argparse
 
 from services import DRIVE_SERVICE, EMAIL_USER, SHEETS_SERVICE
 
-
 if __name__ == '__main__':
     # Экземпляра класса ArgumentParser
     parser = argparse.ArgumentParser(description='Бюджет путешествий')
@@ -35,6 +34,7 @@ def clear_disk(service):
         response = service.files().delete(fileId=spreadsheet['id'])
         response.execute()
     return 'Документы удалены'
+
 
 def set_user_permissions(service, spreadsheetId):
     permissions_body = {'type': 'user',
