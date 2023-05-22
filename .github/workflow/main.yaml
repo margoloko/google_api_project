@@ -1,4 +1,4 @@
-name: Room reservation workflow
+name: travel budget workflow
 
 on: [push]
 
