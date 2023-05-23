@@ -1,9 +1,10 @@
 import argparse
 
-from services import DRIVE_SERVICE, EMAIL_USER, SHEETS_SERVICE
+from services import DRIVE_SERVICE, EMAIL_USER, SHEETS_SERVICE, get_logger
+
+logger = get_logger()
 
 if __name__ == '__main__':
-    # Экземпляра класса ArgumentParser
     parser = argparse.ArgumentParser(description='Бюджет путешествий')
     parser.add_argument('-c', '--create',
                         help='Создать файл - введите "имя, бюджет"')
@@ -17,26 +18,31 @@ if __name__ == '__main__':
                         help='Вывести все spreadsheets')
     parser.add_argument('-u', '--update',
                         help='Обновить данные табилицы')
-    # Парсинг аргументов командной строки
     args = parser.parse_args()
 
 
 def get_list_obj(service):
     """Функция чтения списка документов с таблицами."""
+    logger.info("Getting list of spreadsheets")
     response = service.files().list(
         q='mimeType="application/vnd.google-apps.spreadsheet"').execute()
+    #logging.info(f'List of documents: {response["files"]}')
     return response['files']
 
 
 def clear_disk(service):
     """Функция удаления всех документов с таблицами."""
+    logger.info("Clearing disk")
     for spreadsheet in get_list_obj(service):
+        logger.info("Deleting spreadsheet {}".format(spreadsheet['id']))
         response = service.files().delete(fileId=spreadsheet['id'])
         response.execute()
     return 'Документы удалены'
 
 
 def set_user_permissions(service, spreadsheetId):
+    """Функция установки прав."""
+    logger.info("Setting user permissions for spreadsheet {}".format(spreadsheetId))
     permissions_body = {'type': 'user',
                         'role': 'writer',
                         'emailAddress': EMAIL_USER}
@@ -48,8 +54,8 @@ def set_user_permissions(service, spreadsheetId):
 
 
 def create_spreadsheet(service, data):
-    # Тут будет распаковываться значение аргумента, которое состоит
-    # из двух частей, записанных через запятую: название документа, сумма
+    """Функция создания документа."""
+    logger.info("Creating spreadsheet")
     title, cash = data.split(',')
     spreadsheet_body = {
         'properties': {
@@ -71,13 +77,12 @@ def create_spreadsheet(service, data):
     request = service.spreadsheets().create(body=spreadsheet_body)
     response = request.execute()
     spreadsheetId = response['spreadsheetId']
-    # Вызываем функцию выдачи прав
     set_user_permissions(DRIVE_SERVICE, spreadsheetId)
     spreadsheet_update_values(SHEETS_SERVICE,
                               spreadsheetId,
                               cash,
                               default=True)
-    print(f'https://docs.google.com/spreadsheets/d/{spreadsheetId}')
+    logger.info(f'https://docs.google.com/spreadsheets/d/{spreadsheetId}')
     return f'Был создан документ с ID {spreadsheetId}'
 
 
@@ -91,7 +96,7 @@ def read_values(service, spreadsheetId):
 
 
 def spreadsheet_update_values(service, spreadsheetId, data, default=False):
-    # Если параметр default=True в документ добавится шапка
+    """Функция обновления документа."""
     if default:
         table_values = [
             ['Бюджет путешествия'],
@@ -101,7 +106,6 @@ def spreadsheet_update_values(service, spreadsheetId, data, default=False):
             ['Расходы'],
             ['Описание', 'Тип', 'Кол-во', 'Цена', 'Стоимость'],
         ]
-    # Иначе к текущему содержимому добавится новая строка
     else:
         table_values = read_values(service, spreadsheetId)
         table_values.append(list(map(str.strip, data.split(','))))
@@ -145,6 +149,4 @@ def main(args):
 
 
 if __name__ == '__main__':
-    # Добавьте вывод на печать, чтобы посмотреть на результаты
-    # работы скрипта
     print(main(args))

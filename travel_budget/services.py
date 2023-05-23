@@ -1,3 +1,4 @@
+import logging
 import os
 
 from dotenv import load_dotenv
@@ -27,3 +28,12 @@ CREDENTIALS = Credentials.from_service_account_info(info=INFO,
                                                     scopes=SCOPES)
 SHEETS_SERVICE = discovery.build('sheets', 'v4', credentials=CREDENTIALS)
 DRIVE_SERVICE = discovery.build('drive', 'v3', credentials=CREDENTIALS)
+
+
+def get_logger():
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    logger.addHandler(handler)
+    return logger
