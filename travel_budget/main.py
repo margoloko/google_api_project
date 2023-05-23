@@ -26,7 +26,6 @@ def get_list_obj(service):
     logger.info("Getting list of spreadsheets")
     response = service.files().list(
         q='mimeType="application/vnd.google-apps.spreadsheet"').execute()
-    #logging.info(f'List of documents: {response["files"]}')
     return response['files']
 
 
@@ -42,7 +41,8 @@ def clear_disk(service):
 
 def set_user_permissions(service, spreadsheetId):
     """Функция установки прав."""
-    logger.info("Setting user permissions for spreadsheet {}".format(spreadsheetId))
+    logger.info("Setting user permissions"
+                "for spreadsheet {}".format(spreadsheetId))
     permissions_body = {'type': 'user',
                         'role': 'writer',
                         'emailAddress': EMAIL_USER}
