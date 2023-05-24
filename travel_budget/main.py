@@ -4,123 +4,117 @@ from services import DRIVE_SERVICE, EMAIL_USER, SHEETS_SERVICE, get_logger
 
 logger = get_logger()
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Бюджет путешествий')
-    parser.add_argument('-c', '--create',
-                        help='Создать файл - введите "имя, бюджет"')
-    parser.add_argument('-i', '--id',
-                        help='Указать id spreadsheet')
-    parser.add_argument('-cl', '--clear_all',
-                        action='store_true',
-                        help='Удалить все spreadsheets')
-    parser.add_argument('-ls', '--list',
-                        action='store_true',
-                        help='Вывести все spreadsheets')
-    parser.add_argument('-u', '--update',
-                        help='Обновить данные табилицы')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Бюджет путешествий")
+    parser.add_argument("-c", "--create", help='Создать файл - введите "имя, бюджет"')
+    parser.add_argument("-i", "--id", help="Указать id spreadsheet")
+    parser.add_argument(
+        "-cl", "--clear_all", action="store_true", help="Удалить все spreadsheets"
+    )
+    parser.add_argument(
+        "-ls", "--list", action="store_true", help="Вывести все spreadsheets"
+    )
+    parser.add_argument("-u", "--update", help="Обновить данные табилицы")
     args = parser.parse_args()
 
 
 def get_list_obj(service):
     """Функция чтения списка документов с таблицами."""
     logger.info("Getting list of spreadsheets")
-    response = service.files().list(
-        q='mimeType="application/vnd.google-apps.spreadsheet"').execute()
-    return response['files']
+    response = (
+        service.files()
+        .list(q='mimeType="application/vnd.google-apps.spreadsheet"')
+        .execute()
+    )
+    return response["files"]
 
 
 def clear_disk(service):
     """Функция удаления всех документов с таблицами."""
     logger.info("Clearing disk")
     for spreadsheet in get_list_obj(service):
-        logger.info("Deleting spreadsheet {}".format(spreadsheet['id']))
-        response = service.files().delete(fileId=spreadsheet['id'])
+        logger.info("Deleting spreadsheet {}".format(spreadsheet["id"]))
+        response = service.files().delete(fileId=spreadsheet["id"])
         response.execute()
-    return 'Документы удалены'
+    return "Документы удалены"
 
 
 def set_user_permissions(service, spreadsheetId):
     """Функция установки прав."""
-    logger.info("Setting user permissions"
-                "for spreadsheet {}".format(spreadsheetId))
-    permissions_body = {'type': 'user',
-                        'role': 'writer',
-                        'emailAddress': EMAIL_USER}
+    logger.info("Setting user permissions" "for spreadsheet {}".format(spreadsheetId))
+    permissions_body = {"type": "user", "role": "writer", "emailAddress": EMAIL_USER}
     service.permissions().create(
-        fileId=spreadsheetId,
-        body=permissions_body,
-        fields='id'
+        fileId=spreadsheetId, body=permissions_body, fields="id"
     ).execute()
 
 
 def create_spreadsheet(service, data):
     """Функция создания документа."""
     logger.info("Creating spreadsheet")
-    title, cash = data.split(',')
+    title, cash = data.split(",")
     spreadsheet_body = {
-        'properties': {
-            'title': title.strip(),
-            'locale': 'ru_RU'
-        },
-        'sheets': [{
-            'properties': {
-                'sheetType': 'GRID',
-                'sheetId': 0,
-                'title': 'Отпуск',
-                'gridProperties': {
-                    'rowCount': 100,
-                    'columnCount': 100
+        "properties": {"title": title.strip(), "locale": "ru_RU"},
+        "sheets": [
+            {
+                "properties": {
+                    "sheetType": "GRID",
+                    "sheetId": 0,
+                    "title": "Отпуск",
+                    "gridProperties": {"rowCount": 100, "columnCount": 100},
                 }
             }
-        }]
+        ],
     }
     request = service.spreadsheets().create(body=spreadsheet_body)
     response = request.execute()
-    spreadsheetId = response['spreadsheetId']
+    spreadsheetId = response["spreadsheetId"]
     set_user_permissions(DRIVE_SERVICE, spreadsheetId)
-    spreadsheet_update_values(SHEETS_SERVICE,
-                              spreadsheetId,
-                              cash,
-                              default=True)
-    logger.info(f'https://docs.google.com/spreadsheets/d/{spreadsheetId}')
-    return f'Был создан документ с ID {spreadsheetId}'
+    spreadsheet_update_values(SHEETS_SERVICE, spreadsheetId, cash, default=True)
+    logger.info(f"https://docs.google.com/spreadsheets/d/{spreadsheetId}")
+    return f"Был создан документ с ID {spreadsheetId}"
 
 
 def read_values(service, spreadsheetId):
     range = "A1:E30"
-    response = service.spreadsheets().values().get(
-        spreadsheetId=spreadsheetId,
-        range=range,
-    ).execute()
-    return response['values']
+    response = (
+        service.spreadsheets()
+        .values()
+        .get(
+            spreadsheetId=spreadsheetId,
+            range=range,
+        )
+        .execute()
+    )
+    return response["values"]
 
 
 def spreadsheet_update_values(service, spreadsheetId, data, default=False):
     """Функция обновления документа."""
     if default:
         table_values = [
-            ['Бюджет путешествия'],
-            ['Весь бюджет', data],
-            ['Все расходы', '=SUM(E7:E30)'],
-            ['Остаток', '=B2-B3'],
-            ['Расходы'],
-            ['Описание', 'Тип', 'Кол-во', 'Цена', 'Стоимость'],
+            ["Бюджет путешествия"],
+            ["Весь бюджет", data],
+            ["Все расходы", "=SUM(E7:E30)"],
+            ["Остаток", "=B2-B3"],
+            ["Расходы"],
+            ["Описание", "Тип", "Кол-во", "Цена", "Стоимость"],
         ]
     else:
         table_values = read_values(service, spreadsheetId)
-        table_values.append(list(map(str.strip, data.split(','))))
-    request_body = {
-        "majorDimension": "ROWS",
-        'values': table_values
-    }
-    request = service.spreadsheets().values().update(
-        spreadsheetId=spreadsheetId,
-        range="A1:E30",
-        valueInputOption="USER_ENTERED",
-        body=request_body
+        table_values.append(list(map(str.strip, data.split(","))))
+    request_body = {"majorDimension": "ROWS", "values": table_values}
+    request = (
+        service.spreadsheets()
+        .values()
+        .update(
+            spreadsheetId=spreadsheetId,
+            range="A1:E30",
+            valueInputOption="USER_ENTERED",
+            body=request_body,
+        )
     )
     request.execute()
-    return 'Документ обновлен'
+    return "Документ обновлен"
 
 
 def main(args):
@@ -131,8 +125,7 @@ def main(args):
         return clear_disk(DRIVE_SERVICE)
 
     if args.create is not None:
-        return create_spreadsheet(SHEETS_SERVICE,
-                                  args.create)
+        return create_spreadsheet(SHEETS_SERVICE, args.create)
 
     spreadsheet_id = None
     if args.id is not None:
@@ -140,13 +133,11 @@ def main(args):
     else:
         spreadsheets = get_list_obj(DRIVE_SERVICE)
         if spreadsheets:
-            spreadsheet_id = spreadsheets[0]['id']
+            spreadsheet_id = spreadsheets[0]["id"]
 
     if args.update is not None:
-        return spreadsheet_update_values(SHEETS_SERVICE,
-                                         spreadsheet_id,
-                                         args.update)
+        return spreadsheet_update_values(SHEETS_SERVICE, spreadsheet_id, args.update)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print(main(args))
